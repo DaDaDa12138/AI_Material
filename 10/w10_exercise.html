@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Exercise for Fuzzy Controller</title>
+    <link type='text/css' rel='stylesheet' href='//cs.tru.ca/~mlee/tab.css'>
+    <link type='text/css' rel='stylesheet' href='//cs.tru.ca/~mlee/class.css'>
+    <script src='https://code.jquery.com/jquery-1.11.1.min.js'></script>
+    <script src='https://cs.tru.ca/~mlee/class.js'></script>
+</head>
+
+<body>
+    <div id='title' class = 'pane_upper2'>
+        <h1>Exercise for Fuzzy Controller</h1>
+    </div>
+
+    <div class='pane_lower2'>
+        <ul is='ul-disc'>
+            <li><x-summary><b>Exercise 1</b>: Let's get membership degree when three points for a membership and a crisp value is given.
+                </x-summary>
+                <div>
+                    <textarea id='try1-textarea' rows='25' cols='100'>
+<div id='tr1-output'></div>
+
+<script>
+function get_membership_degree(points, crisp_value)
+{
+    if (crisp_value <= points[0] || crisp_value >= ???)  // zero membership degree
+        return 0;
+    
+    if (crisp_value <= points[1])  // left side
+        return ???
+    else  // right side
+        return ???
+}
+
+var pts = [];
+pts[0] = 0;
+pts[1] = 18;
+pts[2] = 25;
+var current_temperature = 20;
+var membership_degree;
+
+membership_degree = get_membership_degree(pts, current_temperature);
+
+$('#tr1-output').html(membership_degree);
+</script>
+                    </textarea>
+                    <button id='try1-button'>Execute the code</button>
+                    <div id='try1-div' style='border:1px solid black;'><br><br></div>
+                    <script>
+                        $('#try1-button').click(function() {
+                            $('#try1-div').html($('#try1-textarea').val());
+                        });
+                    </script>
+                </div>
+            </li>
+
+            <br>
+            <li><x-summary><b>Exercise 2</b>: Let's get the area of trapzoid for a fuzzy set, when a membership degree is given.
+                </x-summary>
+                <div>
+                    <textarea id='try2-textarea' rows='31' cols='100'>
+<div id='tr2-output'></div>
+
+<script>
+function get_crisp_value_left_side(points, membership_degree) {
+    return membership_degree * (points[1] - points[0]) + points[0];
+}
+
+function get_crisp_value_right_side(points, membership_degree) {
+    return ???
+}
+
+function get_area_output_fuzzy_set(points, membership_degree)
+{
+    if (membership_degree <= 0)
+        return 0;
+    else if (membership_degree >= 1)
+        return ???;
+
+    var left_area, right_area;
+    
+    left_area = (points[1] - points[0]) * membership_degree - 
+        (get_crisp_value_left_side(points, membership_degree) - points[0]) / 2;
+
+    right_area = ???
+        
+    return ???;
+}
+
+var pts = [];
+pts[0] = 0;
+pts[1] = 18;
+pts[2] = 25;
+var membership_degree = 0.4;
+
+var area = get_area_output_fuzzy_set(pts, membership_degree);
+
+$('#tr2-output').html(area);
+</script>
+                    </textarea>
+                    <button id='try2-button'>Execute the code</button>
+                    <div id='try2-div' style='border:1px solid black;'><br><br></div>
+                    <script>
+                        $('#try2-button').click(function() {
+                            $('#try2-div').html($('#try2-textarea').val());
+                        });
+                    </script>
+                </div>
+            </li>
+
+            <br>
+            <li><x-summary><b>Exercise 3</b>: Let's get the center of a triangle.
+                </x-summary>
+                <div>
+                    <textarea id='try3-textarea' rows='18' cols='100'>
+<div id='tr3-output'></div>
+
+<script>
+function get_center_output_fuzzy_set(points) {
+    return ??? / 3;
+}
+
+var pts = [];
+pts[0] = 0;
+pts[1] = 18;
+pts[2] = 25;
+var membership_degree = 0.4;
+
+var area = get_center_output_fuzzy_set(pts);
+
+$('#tr3-output').html(area);
+</script>
+                    </textarea>
+                    <button id='try3-button'>Execute the code</button>
+                    <div id='try3-div' style='border:1px solid black;'><br><br></div>
+                    <script>
+                        $('#try3-button').click(function() {
+                            $('#try3-div').html($('#try3-textarea').val());
+                        });
+                    </script>
+                </div>
+            </li>
+        </ul>
+    </div>
+</body>
+
+<script>
+    $(document).ready(function() {
+        $('#title').click();
+    });
+</script>
+</html>

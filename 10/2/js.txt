@@ -1,0 +1,13 @@
+function __set_normal_temperature(e){__previous_normal_temperature=__current_normal_temperature;var r=e/__A_DAY*360,_=8*Math.sin(r*Math.PI/180)+26;return _>40&&(_=40),_<18&&(_=18),__current_normal_temperature=_}
+
+function __run_ac(e){e<0&&(e=0),e>10&&(e=10);var r=16*e/7200;__current_normal_temperature>__previous_normal_temperature?__current_temperature=__current_temperature+(__current_normal_temperature-__previous_normal_temperature)-r:__current_temperature>__target_temperature?__current_temperature=__current_temperature+(__current_normal_temperature-__previous_normal_temperature)-r:__current_normal_temperature>__current_temperature&&(__current_temperature+=Math.abs(__current_normal_temperature-__previous_normal_temperature),__current_temperature=__current_temperature+(__current_normal_temperature-__previous_normal_temperature)-r)}
+
+function __set_assessment(){__assessment+=Math.abs(__current_temperature-__target_temperature)}
+
+function initialize(){__A_DAY=86400,__target_temperature=18,__previous_normal_temperature=__current_normal_temperature=__current_temperature=26,__assessment=0}
+
+function run_fuzzy_ac(e,r){return __set_normal_temperature(e),__run_ac(r),__set_assessment(),__current_temperature}
+
+function check_temperature(){return __current_temperature}
+
+function check_assessment(e){return __assessment/e}var __A_DAY=86400,__target_temperature=18,__current_temperature=26,__current_normal_temperature=__current_temperature,__previous_normal_temperature=__current_normal_temperature,__assessment=0;

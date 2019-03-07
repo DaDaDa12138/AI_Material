@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+ 
+<head>
+  <title>Traveling Salesman Problem with Genetic Algorithm</title>
+  <script src='http://cs.tru.ca/~mlee/comp3710/Software/ga_tsp.js'></script>
+</head>
+ 
+<body>
+    <h1>Genetic Algorithm for Traveling Salesman Problem</h1>
+    <br>
+     
+    NO_CITIES: <input style='position: absolute; left:200px' id='no-cities' value='100'><br>
+    MAP_WIDTH: <input style='position: absolute; left:200px' id='map-width' value='400'><br>
+    MAP_HEIGHT: <input style='position: absolute; left:200px' id='map-height' value='400'><br>
+    POPULATION_SIZE: <input style='position: absolute; left:200px' id='population-size' value='200'><br>
+    CROSSOVER_RATE: <input style='position: absolute; left:200px' id='crossover-rate' value='0.8'><br>
+    MUTATION_RATE: <input style='position: absolute; left:200px' id='mutation-rate' value='0.05'><br>
+    MAX_GENERATIONS: <input style='position: absolute; left:200px' id='max-generations' value='1000000'><br>
+     
+    <br>
+    <button id='start'>Start</button>
+    <button id='stop' disabled>Stop</button>
+     
+    <br>
+    <br>
+    <canvas id='tsp-canvas' width='400' height='400' style='border:1px solid black'>
+    </canvas>
+     
+    <br>
+    <div id='output'>
+    </div>
+</body>
+ 
+<script>
+    var __message = '';
+    function display_message(m)
+    {
+        __message = m;
+        document.getElementById('output').innerHTML = __message;
+    }
+     
+    var NO_CITIES = 100;
+    var MAP_WIDTH = 400;
+    var MAP_HEIGHT = 400;
+    var POPULATION_SIZE = 200;  // use even number
+    var CROSSOVER_RATE = 0.8;
+    var MUTATION_RATE = 0.05;  // for each new individual
+    var MAX_GENERATIONS = 1000000;
+    var crossed_generation = [];
+    var canvas;
+    var ctx;
+ 
+    var elite = [];
+    var cities;
+    var population;
+    var previous_population_fitness;
+    var current_population_fitness;
+ 
+    var previous_population_fitness;
+    var current_population_fitness;
+    var improvement;
+    var the_best = [];
+    var previous_population_best = [];
+    var timer;
+    var count;
+    var low;
+     
+    document.getElementById('start').addEventListener('click', function() {
+        this.disabled = true;
+        document.getElementById('stop').disabled = false;
+         
+        NO_CITIES = document.getElementById('no-cities').value;
+        MAP_WIDTH = document.getElementById('map-width').value;
+        MAP_HEIGHT = document.getElementById('map-height').value;
+        POPULATION_SIZE = document.getElementById('population-size').value;
+        CROSSOVER_RATE = document.getElementById('crossover-rate').value;
+        MUTATION_RATE = document.getElementById('mutation-rate').value;
+        MAX_GENERATIONS = document.getElementById('max-generations').value;
+         
+        canvas = document.getElementById("tsp-canvas");
+        canvas.width = MAP_WIDTH;
+        canvas.height = MAP_HEIGHT;
+        ctx = canvas.getContext("2d");
+ 
+        cities = initial_cities(NO_CITIES, MAP_WIDTH, MAP_HEIGHT);  // It is like a map.
+                                                                // cities[i].x, cities[i].y
+        console.log('start = ')                                             
+        population = get_initial_population(POPULATION_SIZE, cities);  // Each inidividual is an array of city numbers from 0 to NO_CITIES-1.
+                                                                 // E.g., population[i] = [2, 5, 12, 56, 22, ...]
+     
+        low = get_tour_length(population[0],cities);//assign the first population to the best
+        var the_best_individual = get_best_individual(population, cities);
+        draw_individual(the_best_individual, cities, ctx, canvas);
+ 
+        count = 0;
+        timer = setInterval(run, 5);  // every 5 ms
+    });
+     
+    document.getElementById('stop').addEventListener('click', stop);
+    function stop() {
+        clearInterval(timer);
+        this.disabled = true;
+        document.getElementById('start').disabled = false;
+    };
+     
+    /*
+    * main loop for the genetic algorithm
+    */
+     
+    function run()//dont modify
+    {
+         
+        var next_population = get_next_population(population, cities);
+        population = next_population;
+         
+        var the_best_individual = get_best_individual(population, cities);
+         
+        draw_individual(the_best_individual, cities, ctx, canvas);
+         
+        if (!(count++ < MAX_GENERATIONS))
+            clearInterval(timer);
+    }
+     
+
+    function get_best_individual(population, cities)     
+    {   
+        var the_best_individual = [];//transfer to new array
+        var temp = 0;
+        //check the best distance value
+        for(var i = 0; i < POPULATION_SIZE; i++){
+            temp = get_tour_length(population[i],cities);
+            console.log('trying... ' + i + ' ' + population[i]);
+            console.log('Score ' + temp);
+            if(temp < low){
+                low = temp;
+                elite.push(population[i]);
+                 
+                the_best_individual = population[i].slice();
+                previous_population_best = population[i].slice();
+                console.log('low ' + low);
+            }
+             
+        }
+        if(the_best_individual.length > 0){   
+            //there was a good one we do nothing since it was chosen already
+        }else{
+           //out of this population there was no good individual that beat the last one
+           the_best_individual = previous_population_best;
+        }
+             
+         
+        display_message('Best = ' + the_best_individual + '\n'+ 'generation = ' + count + ' Tour length = ' + Math.floor(low) 
+        );
+        return the_best_individual;
+    }
+	
+	function get_next_population(population, cities)
+    {
+        var next_population = [];
+         
+        //do the whole ga thing here
+        for(var i = 0; i < POPULATION_SIZE; i++){
+         
+            fitness_evaluation(population[i]);
+            next_population = population.slice();//transfer to next population array
+        }
+         
+        return next_population;
+    }
+     
+     
+     
+    function fitness_evaluation(population){
+
+		 
+         var lengths = [];
+         for (var i = 0; i < POPULATION_SIZE; i++) {
+             lengths[i] = get_tour_length (population, cities);
+         }
+
+         var fitness_values = [];
+         for (var i = 0; i < POPULATION_SIZE; i++) 
+             fitness_values[i] = 1 / length[i];
+   
+         var sum = 0;
+         for (var i = 0; i < POPULATION_SIZE; i++)
+         sum += 1 / lengths[i];
+         var fitness_ratios = [];
+         for (var i = 0; i < POPULATION_SIZE; i++)
+         fitness_ratios[i] = (1.0 / lengths[i]) / sum;  // The sum of fitness_ratios[i]’s becomes 1.
+	
+	     parent_selection(fitness_ratios);
+         mutation();
+
+ 
+    }
+    function roulette_selection(fitness_ratios){
+        var r = Math.random();  // r is in [0, 1)        
+        var selected_individual_index;
+		var sum = 0; 
+         
+        for (var i = 0; i < POPULATION_SIZE; i++){
+             
+            if (r <= sum) {
+                selected_individual_index = i;
+                break;
+            }
+            sum += fitness_ratios[i];
+             
+        }
+         
+        if(selected_individual_index == null)
+            selected_individual_index = POPULATION_SIZE-1; 
+             
+        return selected_individual_index;
+ 
+    }
+    function parent_selection(fitness_ratios){
+        var roulette = [];
+        var fitIndex = 0;
+        var parent1;
+        var parent2;
+        var crossover_point1;
+        var crossover_point2;
+        var r = Math.random();
+        var same_parent = false;
+        if(r <= 100){
+             
+            var eliteoffset = elite.length;
+            for(var i = 0; i < eliteoffset; i++){
+                roulette[i] = elite[i];
+            }
+            for(var i = eliteoffset; i < POPULATION_SIZE; i++){
+                fitIndex = roulette_selection(fitness_ratios);
+                roulette[i] = population[fitIndex]; 
+            }
+             
+             
+            for(var i = 0; i < POPULATION_SIZE-1; i++){
+                crossover_point1 = get_crossover_point(NO_CITIES);  
+                crossover_point2 = get_crossover_point(NO_CITIES);
+                 
+                if(crossover_point1 > crossover_point2){
+                    var temp = crossover_point1;
+                    crossover_point1 = crossover_point2;
+                    crossover_point2 = temp;
+                 
+                }
+                crossed_generation[i] = cross(roulette[i], roulette[i+1], crossover_point1, crossover_point2);
+                 
+            }
+            crossed_generation[POPULATION_SIZE-1] = cross(roulette[crossover_point1], roulette[crossover_point2], crossover_point1, crossover_point2).slice();
+             
+            for(var i = 0; i < POPULATION_SIZE; i++){
+                if(get_tour_length(crossed_generation[i],cities) < get_tour_length(population[i],cities))
+                    population[i] = crossed_generation[i];
+            }
+        }
+    }
+     
+    function cross(parent1, parent2, startPos, endPos){
+        var child=[];
+         
+        for(var i = 0; i < NO_CITIES;i++){
+            child[i] = -1;
+        }
+        for (var i = 0; i < NO_CITIES; i++) {
+            if (i > startPos && i < endPos) {
+                child[i] = parent1[i];
+            } 
+        }
+        for (var i = 0; i < NO_CITIES; i++) {
+            if (!containsCity(child, parent2[i])) {
+                for (var j = 0; j < NO_CITIES; j++) {
+                        if (child[j] == -1) {
+                            child[j] = parent2[i];
+                            break;
+                        }
+                }
+            }
+        }
+        return child;
+    }
+    function containsCity(individual,city){
+        var i = individual.length;
+        while (i--) {
+           if (individual[i] === city) {
+               return true;
+           }
+        }
+        return false;
+    }
+     
+    function mutation(){
+     
+        for (i = 0; i < POPULATION_SIZE; i++) {
+            var r = Math.random();
+            if(r < MUTATION_RATE){
+                 
+                var a = Math.floor(Math.random() * (NO_CITIES-1))+1; 
+                var b = Math.floor(Math.random() * (NO_CITIES-1))+1; 
+                var temp;
+           
+                if(a > b){
+                    temp = a;
+                    a = b;
+                    b = temp;
+                }
+                for(var j = a; j < b-1; j++){
+                    arraymove(population[i],a+1,b);
+                }
+
+            }
+        }
+             
+ 
+    }
+     
+    function arraymove(arr, fromIndex, toIndex) {
+        var element = arr[fromIndex];
+        arr.splice(fromIndex, 1);
+        arr.splice(toIndex, 0, element);
+    }
+ 
+    function get_tour_length(population, cities){
+        var tour = 0;
+        var distance = 0;
+ 
+        for(var i = 0; i < NO_CITIES-1; i++){
+            distance = get_distance_between_two_cities(population[i], population[i+1], cities);
+            tour += distance;   
+        }
+         
+        lastCity = population[population.length-1];
+        firstCity = population[0];
+        distance = get_distance_between_two_cities(firstCity, lastCity, cities);
+        tour += distance;
+         
+        return tour;
+    }
+     
+</script>

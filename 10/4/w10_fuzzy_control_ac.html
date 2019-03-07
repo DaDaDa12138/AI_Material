@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Fuzzy Control for AC</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="https://cs.tru.ca/~mlee/comp3710/Fall2017/6. seminars_labs_project/w10_fuzzy_control_ac.min.js"></script>
+</head>
+
+<body>
+    <h1>Fuzzy Control for AC</h1>
+    <br>
+    
+    MAP_WIDTH: <input style='position: absolute; left:200px' id='map-width' value='400'><br>
+    MAP_HEIGHT: <input style='position: absolute; left:200px' id='map-height' value='400'><br>
+   
+    <br>
+    <button id='start'>Start</button>
+    <button id='stop' disabled>Stop</button>
+    
+    <br>
+    <br>
+    <canvas id='tsp-canvas' width='400' height='400' style='border:1px solid black'>
+    </canvas>
+    
+    <br>
+    <br>
+    <div id='output'>
+    </div>
+</body>
+
+<script>
+    function display_message(s)
+    {
+        document.getElementById('output').innerHTML += s + '<br>';
+    }
+    
+    var MAP_WIDTH = 400;
+    var MAP_HEIGHT = 400;
+    
+    var canvas;
+    var ctx;
+    
+    $('#start').click(function() {
+        this.disabled = true;
+        $('#stop').attr('disabled', false);
+            
+        MAP_WIDTH = $('#map-width').val();
+        MAP_HEIGHT = $('#map-height').val();
+            
+        canvas = document.getElementById("tsp-canvas");
+        canvas.width = MAP_WIDTH;
+        canvas.height = MAP_HEIGHT;
+        ctx = canvas.getContext("2d");
+        ctx.fillText("40 C", 10, 10);
+        ctx.fillText("16 C", 10, 390);
+        
+        run();
+    });
+    
+    $('#stop').click(function() {
+        this.disabled = true;
+        $('#start').attr('disabled', false);
+    });
+     
+    function draw_line(ctx, x1, y1, x2, y2)
+    {
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+    }
+    
+    function draw_circle(ctx, x, y, r, a)
+    {
+        ctx.beginPath();
+        ctx.arc(x, y, r, a, 2*Math.PI);
+        ctx.stroke();
+    }
+   
+    
+    /*
+    *   Simulation of Fuzzy A/C Controller
+    */
+    
+    var power = 0;
+    var current_temperature = 0;
+    var change_temperature = 0;
+    
+    // number of fuzzy sets for different fuzzy variables
+    
+    var NO_THETA_FUZZY_SETS = 3;  // You may have different number of fuzzy sets
+    var NO_DTHETA_FUZZY_SETS = 5;
+    var NO_OUTPUT_FUZZY_SETS = 3;
+    
+    // constants for fuzzy sets
+    
+    var FUZZY_SET_NONE = -1;
+    var FUZZY_SET_NM = 0;
+    var FUZZY_SET_NS = 1;
+    var FUZZY_SET_ZE = 2;
+    var FUZZY_SET_PS = 3;
+    var FUZZY_SET_PM = 4;
+    
+    // 2D matrix for fuzzy rules
+    //  You need to use your fuzzy rules.
+    //  The example is not for A/C. The example came from Fuzzy Inverted Pendulum controller.
+    
+    var fuzzy_rules = [  // It should be a 2D array of dtheta values x theta values.
+                           // E.g., 
+                        [2, 3, 3],
+                        [2, 3, 4],
+                        [2, 3, 4],
+                        [3, 4, 4],
+                        [4, 4, 4]
+                      ];
+    
+    // Fizzy membership functions
+    //  You just need to keep three domain values for a triangle shape.
+    
+	var fuzzy_membership_THETA_ZE = [18, 18, 29];
+    var fuzzy_membership_THETA_PS = [18, 29, 40];
+    var fuzzy_membership_THETA_PM = [29, 40, 40];
+    
+    var fuzzy_membership_DTHETA_NM = [-5, -5, -2.5];
+    var fuzzy_membership_DTHETA_NS = [-5, -2.5, 0];
+    var fuzzy_membership_DTHETA_ZE = [-2.5, 0, 2,5];
+    var fuzzy_membership_DTHETA_PS = [0, 2.5, 5];
+    var fuzzy_membership_DTHETA_PM = [2.5, 5, 5];
+    
+    var fuzzy_membership_OUTPUT_ZE = [0, 0, 5 ];
+    var fuzzy_membership_OUTPUT_PS = [0, 5, 10];
+    var fuzzy_membership_OUTPUT_PM = [5, 10, 10];
+    
+    
+    // This function will be invoked when the 'Start' button is clicked.
+   function run() 
+    {
+        var previous_temperature;
+        
+        for (var time = 0; time < 60*60*24; time++) 
+        {
+            // decide the power every 60 second, using the fuzzy logic
+            
+            if (time % 60) {
+                // check the temperature, and the change of the temperature
+                
+                previous_temperature = current_temperature;
+                current_temperature = check_temperature();  // new current_temperature
+                change_temperature = current_temperature - previous_temperature;
+                               
+
+			   // decide the power using the fuzzy logic
+                power = decide_power_using_fuzzy_logic(current_temperature, change_temperature);
+		   
+						   
+                // draw a curve of temperatures
+                //  just for demonstration
+                draw_circle(ctx, time/(60*60*24) * MAP_WIDTH, (current_temperature-18) * ((MAP_HEIGHT-50)/16) + 50, .5, 0);
+           }
+            // run A/C
+            
+            run_fuzzy_ac(time, power);
+        } 
+        
+        // for the evaluation of the fuzzy controller
+        
+        display_message(check_assessment(60 * 60 * 24));
+
+    }
+    
+ 
+    // Implementation of Fuzzy A/C Controller
+    //   It will the power, i.e., electric current, in [0, 10], and return it.
+    function decide_power_using_fuzzy_logic(current_temperature, change_temperature)
+    {
+        var output_fuzzy_sets;
+        var crisp_output;
+        
+        output_fuzzy_sets = fuzzify(current_temperature, change_temperature);
+        
+        crisp_output = defuzzify(output_fuzzy_sets);
+        // crisp_output = 1;
+        return crisp_output;
+    }
+ 
+    // It will return 2D array of 4 fuzzy sets with their membership degrees.
+    //  E.g., [ [-1, 0], [2, 0.3], [3, 0.5], [4, 0.1] ], 
+    //          where -1 means NO fuzzy set, 2 means FUZZY_SET_ZE, 3 means FUZZY_SET_PS, and 4 means FUZZY_SET_PM.
+    //  The output should have NOT include multiple of any same fuzzy set.
+    function fuzzify(current_temperature, change_temperature)
+    {
+        var theta_fuzzy_sets = fuzzify_theta(current_temperature);  // fuzzify current_temperature
+        var dtheta_fuzzy_sets = fuzzify_dtheta(change_temperature);  // fuzzify change_temperature
+        var output_fuzzy_sets = [];
+        
+        // inference
+        // get output fuzzy sets
+        
+        output_fuzzy_sets[0] = [];
+        output_fuzzy_sets[0][0] = fuzzy_rules[dtheta_fuzzy_sets[0][0]][theta_fuzzy_sets[0][0]-2];  // -2 because Theta does not start with NM (== 0).
+        output_fuzzy_sets[0][1] = Math.min(dtheta_fuzzy_sets[0][1], theta_fuzzy_sets[0][1]);
+        
+        // for three other cases
+
+        output_fuzzy_sets[1] = [];
+        output_fuzzy_sets[1][0] = fuzzy_rules[theta_fuzzy_sets[0][0]][dtheta_fuzzy_sets[1][0]];
+        output_fuzzy_sets[1][1] = Math.min(theta_fuzzy_sets[0][1], dtheta_fuzzy_sets[1][1]);
+
+        output_fuzzy_sets[2] = [];
+        output_fuzzy_sets[2][0] = fuzzy_rules[theta_fuzzy_sets[1][0]][dtheta_fuzzy_sets[0][0]];
+        output_fuzzy_sets[2][1] = Math.min(theta_fuzzy_sets[1][1], dtheta_fuzzy_sets[0][1]);
+
+        output_fuzzy_sets[3] = [];
+        output_fuzzy_sets[3][0] = fuzzy_rules[theta_fuzzy_sets[1][0]][dtheta_fuzzy_sets[1][0]];
+        output_fuzzy_sets[3][1] = Math.min(dtheta_fuzzy_sets[1][1], theta_fuzzy_sets[1][1]);
+       
+        // for a multiple occurrence of any output fuzzy set
+        for (var i = 0; i < 4; i++) {
+            if (output_fuzzy_sets[i][0] != -1)
+                for (var j = i+1; j < 4; j++)
+                    if (output_fuzzy_sets[i][0] == output_fuzzy_sets[j][0]) {
+                        output_fuzzy_sets[i][1] = Math.max(output_fuzzy_sets[i][1],output_fuzzy_sets[j][1]);  // 
+                        output_fuzzy_sets[j][0] = -1;  // In order to make it not used again
+                    }
+        }
+        
+        // return the output fuzzy sets
+        
+        return output_fuzzy_sets;
+    }
+    
+    // It will return 2D array of 2 fuzzy sets with their membership degrees.
+    //  E.g., [[2, 0.5], [3, 0.2]]
+    function fuzzify_theta(current_temperature){
+	
+	   var fuzzy_sets = [];
+       if(current_temperature <= 29){
+            fuzzy_sets[0] = [];
+            fuzzy_sets[1] = [];
+            fuzzy_sets[0][0] = 0;
+            fuzzy_sets[0][1] = get_membership_degree(fuzzy_membership_THETA_ZE, current_temperature);
+            fuzzy_sets[1][0] = 1;
+            fuzzy_sets[1][1] = get_membership_degree(fuzzy_membership_THETA_PS, current_temperature);
+            }else{
+            fuzzy_sets[0] = [];
+            fuzzy_sets[1] = [];
+            fuzzy_sets[0][0] = 1;
+            fuzzy_sets[0][1] = get_membership_degree(fuzzy_membership_THETA_PS, current_temperature);
+            fuzzy_sets[1][0] = 2;
+            fuzzy_sets[1][1] = get_membership_degree(fuzzy_membership_THETA_PM, current_temperature);
+           }
+          return fuzzy_sets;
+		   
+    }
+    // It will return 2D array of 2 fuzzy sets with their membership degrees.
+    //  E.g., [[0, 0.7], [1, 0.3]]
+    function fuzzify_dtheta(change_temperature)
+    {
+        var fuzzy_sets = [];
+        if(change_temperature <= -2.5){
+            fuzzy_sets[0] = [];
+            fuzzy_sets[1] = [];
+            fuzzy_sets[0][0] = 0;
+            fuzzy_sets[0][1] = get_membership_degree(fuzzy_membership_DTHETA_NM, change_temperature);
+            fuzzy_sets[1][0] = 1;
+            fuzzy_sets[1][1] = get_membership_degree(fuzzy_membership_DTHETA_NS, change_temperature);
+        }
+        else if(change_temperature <= 0){
+            fuzzy_sets[0] = [];
+            fuzzy_sets[1] = [];
+            fuzzy_sets[0][0] = 1;
+            fuzzy_sets[0][1] = get_membership_degree(fuzzy_membership_DTHETA_NS, change_temperature);
+            fuzzy_sets[1][0] = 2;
+            fuzzy_sets[1][1] = get_membership_degree(fuzzy_membership_DTHETA_ZE, change_temperature);
+        }
+        else if(change_temperature <= 2.5){
+            fuzzy_sets[0] = [];
+            fuzzy_sets[1] = [];
+            fuzzy_sets[0][0] = 2;
+            fuzzy_sets[0][1] = get_membership_degree(fuzzy_membership_DTHETA_ZE, change_temperature);
+            fuzzy_sets[1][0] = 3;
+            fuzzy_sets[1][1] = get_membership_degree(fuzzy_membership_DTHETA_PS, change_temperature);
+        }
+        else{
+            fuzzy_sets[0] = [];
+            fuzzy_sets[1] = [];
+            fuzzy_sets[0][0] = 3;
+            fuzzy_sets[0][1] = get_membership_degree(fuzzy_membership_DTHETA_PS, change_temperature);
+            fuzzy_sets[1][0] = 4;
+            fuzzy_sets[1][1] = get_membership_degree(fuzzy_membership_DTHETA_PM, change_temperature);
+        }
+       
+        return fuzzy_sets;
+     }
+	
+    
+    
+    // points: 1D array of 3 values that are used to define a triangle shape fuzzy membership
+    function get_membership_degree(points, crisp_value)  // points[0], points[1], points[2]
+    {
+        if (crisp_value <= points[0] || crisp_value >= points[2]) 
+        return 0;
+        if (crisp_value <= points[1]) 
+        return (points[1]-crisp_value)/(points[1]-points[0]);
+        else  // right side
+        return (points[2]-crisp_value)/(points[2]-points[1]);
+    }
+    
+    // It will return a crips value
+    //  output_fuzzy_sets: the return value from fuzzify(); 4 x 2
+    function defuzzify(output_fuzzy_sets)
+    {   
+	    var crips_value = 0;
+	    var length= output_fuzzy_sets.length;
+		var area = [];
+        var center = [];
+        
+        for(var i = 0; i < output_fuzzy_sets.length; i++){
+            if(output_fuzzy_sets[i][0] == 2){
+                area[i] = get_area_output_fuzzy_set(fuzzy_membership_OUTPUT_ZE, output_fuzzy_sets[i][1]);
+                center[i] = get_center_output_fuzzy_set(fuzzy_membership_OUTPUT_ZE);
+            }else if(output_fuzzy_sets[i][0] == 3){
+                area[i] = get_area_output_fuzzy_set(fuzzy_membership_OUTPUT_PS, output_fuzzy_sets[i][1]);
+                center[i] = get_center_output_fuzzy_set(fuzzy_membership_OUTPUT_PS);
+            }else if(output_fuzzy_sets[i][0] == 4){
+                area[i] = get_area_output_fuzzy_set(fuzzy_membership_OUTPUT_PM, output_fuzzy_sets[i][1]);
+                center[i] = get_center_output_fuzzy_set(fuzzy_membership_OUTPUT_PM);
+            }else{
+                area[i] = 0;
+                center[i] = 0;}
+            }
+         for(var k = 0; k <output_fuzzy_sets.length; k++){
+            if(area[k] == 0 || center[k] == 0){
+                crips_value += 0;
+            }else{
+                crips_value+= (area[k] * center[k]) / (area[k]);
+            }}
+         return crips_value;  
+    }
+	
+    // get the area of trapzoid for an OUTPUT fuzzy set of a certain membership degree
+    //  points[0], points[1], points[2] for a fuzzy set membership function
+    function get_area_output_fuzzy_set(points, membership_degree)
+    {
+        if (membership_degree <= 0)
+        return 0;
+        else if (membership_degree >= 1)
+        return (points[2]-points[0])/2;//truangle (b-a)*c/2 
+
+        var left_area, right_area;
+   
+        left_area = (points[1] - points[0]) * membership_degree -(get_crisp_value_left_side(points, membership_degree) - points[0])*membership_degree / 2;
+        right_area = ((points[2] - points[1]) * membership_degree)- ((points[2] - get_crisp_value_right_side(points, membership_degree)) * membership_degree / 2);
+        return left_area + right_area;
+    }
+	
+	function get_crisp_value_left_side(points, membership_degree)
+	{
+    return membership_degree * (points[1] - points[0]) + points[0];
+    }
+
+	
+    function get_crisp_value_right_side(points, membership_degree) {
+    return points[2] - ((points[2] - points[1]) * membership_degree);
+    }
+
+    function get_center_output_fuzzy_set(points) {
+    return (points[0] + points[1] + points[2]) / 3;
+    }
+</script>
+</html>

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Neural Network for Pattern Recognition</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <style>
+        table {
+            display: inline;
+            margin: 10px;
+        }
+        table, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+        td {
+            width: 20px;
+            height: 20px;
+            background-color: White;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Neural Network for Pattern Recognition</h1>
+
+    <br>
+    <hr>
+    <br>
+
+    <label for='no-images-training-set'>Number of images for each of '1' and '2' in the training data set: </label> <input id='no-images-training-set' type='text' value='20'><br>
+    <div id='one-and-two'></div>
+    <br>
+    <label for='learning-rate'>Learning rate: </label> <input id='learning-rate' type='text' value='0.2'>
+    <span>&nbsp;&nbsp;&nbsp;&nbsp;</span><br>
+    <label for='no-training-epochs'>Number of training epochs: </label> <input id='no-training-epochs' type='text' value='10000'>
+    <span>&nbsp;&nbsp;&nbsp;&nbsp;</span><br>
+    <label for='no-nodes-hidden-layer'>Number of nodes in hidden layer: </label> <input id='no-nodes-hidden-layer' type='text' value='20'>
+    <span>&nbsp;&nbsp;&nbsp;&nbsp;</span><br>
+    <label for='threshold'>Threshold: </label> <input id='threshold' type='text' value='0.5'><br>
+
+    <br>
+    <hr>
+    <br>
+
+    <button id='button-generate-traning-data-set'>Generate Traing Data Set for '1' and '2'</button>
+    <span>&nbsp;&nbsp;&nbsp;&nbsp;</span>
+    <button id='button-show-traning-data-set' disabled>Show Traing Data Set</button>
+    <span>&nbsp;&nbsp;&nbsp;&nbsp;</span>
+    <button id='button-hide-traning-data-set' disabled>Hide Traing Data Set</button>
+    <span>&nbsp;&nbsp;&nbsp;&nbsp;</span>
+    <button id='button-train-nn' disabled>Train NN</button>
+
+    <div id='training-data-set'>
+    </div>
+
+    <br>
+    <hr>
+    <br>
+
+    <button id='button-generate-one' disabled>Generate '1' to test NN</button>
+    <span>&nbsp;&nbsp;&nbsp;&nbsp;</span>
+    <button id='button-generate-two' disabled>Generate '2' to test NN</button>
+    <span>&nbsp;&nbsp;&nbsp;&nbsp;</span>
+    <button id='button-generate-four' disabled>Generate '4' to test NN</button>
+    <span>&nbsp;&nbsp;&nbsp;&nbsp;</span>
+    <button id='button-recognize' disabled>Recognize using NN</button>
+
+    <br>
+    <div id='number-to-recognize'>
+    </div>
+
+    <br>
+    <div>
+        <p id='output'></p>
+    </div>
+</body>
+</html>
+
+<script>
+    var IMG_WIDTH = 8;
+    var IMG_HEIGHT = 10;
+    var img_one = [
+        0, 0, 1, 1, 1, 0, 0, 0,
+        0, 0, 1, 1, 1, 0, 0, 0,
+        0, 0, 0, 1, 1, 0, 0, 0,
+        0, 0, 0, 1, 1, 0, 0, 0,
+        0, 0, 0, 1, 1, 0, 0, 0,
+        0, 0, 0, 1, 1, 0, 0, 0,
+        0, 0, 0, 1, 1, 0, 0, 0,
+        0, 0, 0, 1, 1, 0, 0, 0,
+        0, 0, 1, 1, 1, 1, 0, 0,
+        0, 0, 1, 1, 1, 1, 0, 0
+    ];
+    var img_two = [
+        1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1,
+        0, 0, 0, 0, 0, 0, 1, 1,
+        0, 0, 0, 0, 0, 0, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 0, 0, 0, 0, 0, 0,
+        1, 1, 0, 0, 0, 0, 0, 0,
+        1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1
+    ];
+    var img_four = [
+        1, 1, 0, 0, 0, 0, 1, 1,
+        1, 1, 0, 0, 0, 0, 1, 1,
+        1, 1, 0, 0, 0, 0, 1, 1,
+        1, 1, 0, 0, 0, 0, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1,
+        0, 0, 0, 0, 0, 0, 1, 1,
+        0, 0, 0, 0, 0, 0, 1, 1,
+        0, 0, 0, 0, 0, 0, 1, 1,
+        0, 0, 0, 0, 0, 0, 1, 1
+    ];
+
+    var NO_IMAGES_IN_TRAINING_DATA_SET = 10;
+    var RATE_NOISE = 0.05;
+
+    var training_data_set = [[], []];
+    var str_training_data_set;
+    var number_image_to_recognize;
+
+    $('#one-and-two').html(generate_table(img_one, 0) + generate_table(img_two, 1));
+
+    $('#button-generate-traning-data-set').click(function() {
+        NO_IMAGES_IN_TRAINING_DATA_SET = $('#no-images-training-set').val();
+
+        var str = "";
+
+        str = generate_table(img_one, 1) + '<br>';
+        for (var i = 0; i < NO_IMAGES_IN_TRAINING_DATA_SET; i++) {
+            training_data_set[0][i] = scramble(img_one, RATE_NOISE);
+            str += generate_table(training_data_set[0][i], 1);
+            str += '<span>&nbsp;&nbsp;&nbsp;</span>';
+        }
+        str += '<br>';
+        str += generate_table(img_two, 2) + '<br>';
+        for (var i = 0; i < NO_IMAGES_IN_TRAINING_DATA_SET; i++) {
+            training_data_set[1][i] = scramble(img_two, RATE_NOISE);
+            str += generate_table(training_data_set[1][i], 2);
+            str += '<span>&nbsp;&nbsp;&nbsp;</span>';
+        }
+
+        str_training_data_set = str;
+
+        document.getElementById('button-show-traning-data-set').disabled = false;
+        document.getElementById('button-hide-traning-data-set').disabled = false;
+        document.getElementById('button-train-nn').disabled = false;
+    });
+
+    $('#button-show-traning-data-set').click(function() {
+        $('#training-data-set').html(str_training_data_set);
+    });
+
+    $('#button-hide-traning-data-set').click(function() {
+        $('#training-data-set').html("");
+    });
+
+    $('#button-train-nn').click(function() {
+        document.getElementById('button-show-traning-data-set').disabled = true;
+        document.getElementById('button-hide-traning-data-set').disabled = true;
+        $('#button-train-nn').attr('disabled', 'true');
+
+        //setTimeout(train_NN, 10);
+        train_NN();
+
+        document.getElementById('button-show-traning-data-set').disabled = false;
+        document.getElementById('button-hide-traning-data-set').disabled = false;
+        document.getElementById('button-generate-one').disabled = false;
+        document.getElementById('button-generate-two').disabled = false;
+        document.getElementById('button-generate-four').disabled = false;
+    });
+
+    $('#button-generate-one').click(function() {
+        number_image_to_recognize = scramble(img_one, RATE_NOISE);
+        $('#number-to-recognize').html(generate_table(number_image_to_recognize));
+        document.getElementById('button-recognize').disabled = false;
+    });
+
+    $('#button-generate-two').click(function() {
+        number_image_to_recognize = scramble(img_two, RATE_NOISE);
+        $('#number-to-recognize').html(generate_table(number_image_to_recognize));
+        document.getElementById('button-recognize').disabled = false;
+    });
+
+    $('#button-generate-four').click(function() {
+        number_image_to_recognize = scramble(img_four, RATE_NOISE);
+        $('#number-to-recognize').html(generate_table(number_image_to_recognize));
+        document.getElementById('button-recognize').disabled = false;
+    });
+
+    $('#button-recognize').click(function() {
+        recognize(number_image_to_recognize);
+    });
+
+    function print(msg)
+    {
+        $('#output').html(msg);
+    }
+
+    function print_plus(msg)
+    {
+        $('#output').html($('#output').html() + '<br>' + msg);
+    }
+
+    function scramble(img, rate)
+    {
+        var new_img = img.slice();
+
+        for (var i = 0; i < new_img.length; i++)
+            if (Math.random() < rate) {
+                if (new_img[i] == 0)
+                    new_img[i] = 1;
+                else
+                    new_img[i] = 0;
+            }
+
+        return new_img;
+    }
+
+    function generate_table(img, id)
+    {
+        var str = "<table id='" + id + "'>";
+
+        for (var h = 0; h < IMG_HEIGHT; h++) {
+            str += "<tr id='" + id + '_' + h + "'>";
+            for (var w = 0; w < IMG_WIDTH; w++) {
+                str += "<td id='" + id + '_' + h + '_' + w + "' style='";
+                //alert(img[h * IMG_WIDTH + w]);
+                if (img[h * IMG_WIDTH + w] == 0)
+                    str += 'background-color: white';
+                else
+                    str += 'background-color: black';
+                str += "'></td>";
+            }
+            str += '</tr>';
+        }
+
+        return str;
+    }
+
+
+    /*
+    *   Implementation of Backpropatation Neural Network (BNN)
+    */
+
+    // Training data set
+
+    var Training_data_set_input = training_data_set;  // It is prepared in the above.
+                                             //   training_data_set_input[0][0], ... *[0][NO_IMAGES_IN_TRAINING_DATA_SET-1] -> images for '1'
+                                                      //   training_data_set_input[1][0], ... *[1][NO_IMAGES_IN_TRAINING_DATA_SET-1] -> images for '2'
+                                                      //   training_data_set_input[i][j] is an array of IMG_WIDTH * IMG_HEIGHT elements.
+                                                      //     Their values 0 or 1.
+    var Expected_output = [[0, 1], [1, 0]];  // two output nodes
+                                             //   Expected_output[0] -> 0, 1 -> number '1'
+                                             //   Expected_output[1] -> 1, 0 -> number '2'
+
+    // Constants
+
+    var NO_TRAINING_EPOCHS = 10000;  // The user will enter this value.
+
+    var NO_NODES_INPUT_LAYER = IMG_WIDTH * IMG_HEIGHT;
+    var NO_NODES_HIDDEN_LAYER = 10;  // The user will enther this value.
+    var NO_NODES_OUTPUT_LAYER = 2;
+    var ALPHA = 0.2;  // The user will enther this value.
+    var THRESHOLD = 0.5;  // The user will enther this value.
+
+    // Arrays used in BNN
+
+    var Input = [];
+    var Weight_input_hidden_layers = [];
+    var Weight_hidden_output_layers = [];
+    var Output_input_layer = [];
+    var Output_hidden_layer = [];
+    var Output_output_layer = [];
+    var Delta_output_layer = [];
+    var Delta_hidden_layer = [];
+    var Error = [];
+
+    // This function will be invoked when 'Train NN' button is clicked.
+
+    function train_NN()
+    {
+        /*
+        *   Read values Alpha, ...
+        */
+
+        ALPHA = $('#learning-rate').val();
+        NO_TRAINING_EPOCHS = $('#no-training-epochs').val();
+        NO_NODES_HIDDEN_LAYER = $('#no-nodes-hidden-layer').val();
+        THRESHOLD = $('#threshold').val();
+
+        print_plus('Training ... Please wait!');
+        alert('The training may take a long time. Please wait!');
+
+        /*
+        *   General initialization
+        */
+
+        var i, j, k;
+
+        /*
+        *   Initialization of weights
+        */
+
+        for (i = 0; i < NO_NODES_INPUT_LAYER; i++) {
+            Weight_input_hidden_layers[i] = [];
+            for (j = 0; j < NO_NODES_HIDDEN_LAYER; j++)
+                Weight_input_hidden_layers[i][j] = Math.random();
+        }
+
+        for (i = 0; i < NO_NODES_HIDDEN_LAYER; i++) {
+            Weight_hidden_output_layers[i] = [];
+            for (j = 0; j < NO_NODES_OUTPUT_LAYER; j++)
+                Weight_hidden_output_layers[i][j] = Math.random();
+        }
+
+        /*
+        *   Training
+        */
+
+        for (i = 0; i < NO_TRAINING_EPOCHS; i++)  // For number of training epochs
+        {
+            for (j = 0; j < NO_IMAGES_IN_TRAINING_DATA_SET; j++)
+            {
+                nn_process_input(Training_data_set_input[0][j]);  // For number '1'
+                nn_adjust_weights(0);
+                if (i % 100 == 0) console.log('Epoch: ' + i + '; the output layer values: ' + Output_output_layer[0] + ', ' + Output_output_layer[1]);
+
+                nn_process_input(Training_data_set_input[1][j]);  // For number '2'
+                nn_adjust_weights(1);
+                if (i % 100 == 0) console.log('Epoch: ' + i + '; the output layer values: ' + Output_output_layer[0] + ', ' + Output_output_layer[1]);
+            }
+        }
+
+        print_plus('Training completed');
+    }
+
+    /*
+    *   You need to complete the following two functions.
+    */
+
+    function nn_process_input(img_number)
+    {
+        // Convert the 1-D array of image to a matrix of NO_NODES_INPUT_LAYER x 1.
+        for (var i = 0; i < NO_NODES_INPUT_LAYER; i++)
+            Output_input_layer[i] = img_number[i];
+
+        // Output from the hidden layer - Output_hidden_layer
+        for (var j = 0; j < NO_NODES_HIDDEN_LAYER; j++) {
+            var Xj = 0;
+            for (var i = 0; i < NO_NODES_INPUT_LAYER; i++) {
+                Xj =  Math.sum( Weight_input_hidden_layers[i][j] * Output_input_layer[i]);  // weighted sum
+            }
+            Xj -= THRESHOLD;  // Threshold
+            Output_hidden_layer[j] = 1/Math.pow(Math.E,1+Xj);
+        }
+
+        // Output from the output layer - Output_output_layer
+         for (var j = 0; j < NO_NODES_OUTPUT_LAYER; j++) {
+            var Xj = 0;
+            for (var i = 0; i < NO_NODES_INPUT_LAYER; i++) {
+                Xj +=  Weight_hidden_output_layers[i][j] * Output_hidden_layer[j];  // weighted sum
+            }
+            Xj -= THRESHOLD;  // Threshold
+            Output_output_layer[j] = 1/Math.pow(Math.E,1+Xj);
+        }
+    }
+
+    function nn_adjust_weights(number)  // number: 0 or 1
+    {
+        // Adjust errors
+
+        for (var i = 0; i < NO_NODES_OUTPUT_LAYER; i++) {
+            Error[i] = Expected_output[i]-Output_output_layer[i];
+        }
+
+        // Adjust deltas
+
+        // Output layer - Delta_output_layer
+        for (var i = 0; i < NO_NODES_OUTPUT_LAYER; i++)
+            Delta_output_layer[i] = Output_output_layer[i]*(1-Output_output_layer[i])*Error[i];
+
+        // Hidden layer - Delta_hidden_layer
+        for (var i = 0; i < NO_NODES_HIDDEN_LAYER; i++)
+		   for(var k=0;k< NO_NODES_OUTPUT_LAYER;k++)
+            Delta_hidden_layer[i] = Output_hidden_layer[i]*(1-Output_hidden_layer[i])*(Weight_hidden_output_layers[i]* Delta_output_layer[k]);
+
+        // Adjust weights
+
+        // Between hidden and output layers - Weight_hidden_output_layers
+        for (var j = 0; j < NO_NODES_HIDDEN_LAYER; j++)
+            for (var k = 0; k < NO_NODES_OUTPUT_LAYER; k++)
+                Weight_hidden_output_layers[j][k] = Weight_hidden_output_layers[j][k] + ALPHA*Output_hidden_layer[j]* Delta_output_layer[k];
+
+        // Between input and hidden layers - Weight_input_hidden_layers
+        for (var j = 0; j < NO_NODES_INPUT_LAYER; j++)
+            for (var k = 0; k < NO_NODES_HIDDEN_LAYER; k++)
+                Weight_hidden_output_layers[j][k] = Weight_hidden_output_layers[j][k] + ALPHA*Output_input_layer[j]* Delta_hidden_layer[k];
+
+    }
+
+    // This function will be invoked when 'Recognize using NN' button is clicked.
+
+    function recognize(img)
+    {
+        if (img == undefined) {
+            alert('The number image is not prepared.');
+            return;
+        }
+
+        nn_query(img);
+    }
+
+    function nn_query(img_number)
+    {
+        nn_process_input(img_number);
+
+        print('The output layer values are ...' + Output_output_layer[0] + ', ' + Output_output_layer[1]);
+    }
+</script>

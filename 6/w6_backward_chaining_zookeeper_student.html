@@ -1,0 +1,219 @@
+<!document html>
+
+<html lang='en'>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</head>
+
+<body>
+    <div class='container'>
+        <h1 style='text-align: center'>Backward Chaining for ZooKeeper</h1>
+        <br>
+
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="BlackColor">BlackColor</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="BlackStrip">BlackStrip</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="ChewCud" checked>ChewCud</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="Claw">Claw</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="DarkSpot" checked>DarkSpot</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="EatMeat">EatMeat</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="Feather">Feather</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="ForwardPointingEye">ForwardPointingEye</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="Fly">Fly</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="FlyWell">FlyWell</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="Hair" checked>Hair</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="Hoof">Hoof</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="LayEgg">LayEgg</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="LongLeg" checked>LongLeg</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="LongNeck" checked>LongNeck</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="Milk">Milk</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="NotFly">NotFly</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="PointedTooth">PointedTooth</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="Swim">Swim</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="TawnyColor" checked>TawnyColor</label></div>
+        <div class='checkbox-inline'><input type="checkbox" name='property' value="WhiteColor">WhiteColor</label></div>
+
+        <br>
+        <br>
+        <div style='margin:auto; text-align:center'><button id='find' type="button" class="btn btn-primary">Find what animal is</button></div>
+        <br>
+        <br>
+        <div id='msg-pane'></div>
+    </div>
+</body>
+
+<script>
+    function print_msg(msg) {
+        document.getElementById('msg-pane').innerHTML += msg;
+    }
+
+    function println_msg(msg) {
+        document.getElementById('msg-pane').innerHTML += msg + '<br>';
+    }
+
+    function clear_msg() {
+        document.getElementById('msg-pane').innerHTML = '';
+    }
+</script>
+
+<script>
+    /*
+    *   Knowledge base
+    */
+    
+    // Propositional symbols:
+    //   BlackColor (黑色）, BlackStrip （黑条纹）, ChewCud （咀嚼）, Claw （爪子）, DarkSpot （黑点）, EatMeat （吃肉）, Feather （羽毛）, ForwardPointingEye （眼睛向前凸）, Fly （会飞）, FlyWell （飞的很好）,
+    //   Hair （头发）, Hoof （蹄子）, LayEgg （下蛋）, LongLeg （大长腿）, LongNeck （大长脖子）, Milk （产乳）, NotFly （不会飞）, PointedTooth （尖牙）, Swim （会游泳）, TawnyColor （黄褐色）, WhiteColor （白色）
+    
+    var rules = {};
+    rules['Mammal'] = [['Hair', 'Milk']];
+    rules['Bird'] = [['Feather'],['Fly','LayEgg']];
+    rules['Carnivore'] = [['Mammal','EatMeat'],['Mammal','PointedTooth','Claw','ForwardPointingEye']];
+    rules['Ungulate'] = [['Mammal', 'Hoof'], ['Mammal', 'ChewCud']];
+    rules['Cheetah'] = [['Carnivore', 'TawnyColor', 'DarkSpot']];
+    rules['Tiger'] = [['Carnivore','BlackStrip','TawnyColor']];
+    rules['Giraffe'] = [['Ungulate', 'LongLeg', 'LongNeck', 'TawnyColor', 'DarkSpot']];
+    rules['Zebra'] = [['Ungulate', 'WhiteColor', 'BlackStrip']];
+    rules['Ostrich'] = [['Bird','LongLeg','LongNeck','NotFly','BlackColor','WhiteColor']];
+    rules['Penguin'] = [['Bird','NotFly','BlackColor','WhiteColor','Swim']];
+    rules['Albatross'] = [['Bird','Fly','FlyWell']]
+
+    /*
+    *   Facts (, i.e., observations)
+    */
+    
+    var facts = [];  // It will be filled when the user clicks the button.
+
+    /*
+    *   Animals in the zoo
+    */
+    
+    var animals = ['Albatross', 'Penguin', 'Ostrich', 'Zebra', 'Giraffe', 'Tiger', 'Cheetah'];
+
+    /*
+    *   Obtain the facts (i.e., observations) from the user,
+    *   save then into the queue, 'facts', and
+    *   invoke 'find()' to find what animal is.
+    */
+    
+    $(document).ready(function() {
+        $("#find").click(function() {
+            facts = [];
+            $.each($("input[name='property']:checked"), function(){            
+                facts.push($(this).val());
+            });
+
+            clear_msg();
+            println_msg('Properties are ' + facts.join(', ') + '.<br>');
+
+            find();
+        });
+    });
+
+
+    /*
+    *   A function to check each animal if it has the facts, using backward chaining
+    */
+    
+    function find()
+    {
+        // For each animal, check if it has the facts, using backwardChaining()
+        for (var i = 0; i < animals.length; i++) {
+            if (backwardChaining(isFact(animals[i])))
+                println_msg(pushIntoFacts(i));
+            else
+                println_msg(thereIsNoRuleToUse(i));
+        }
+    }
+
+    /*
+    *   Inference engine - backward chaining
+    */
+    
+    function backwardChaining(ps)  // ps is a propositional symbol; animal; e.g., 'Mammal'
+                                   // returns true or false
+    {
+         // The doc document explains the algorithm.
+		for (var i=0; i<facts.length; i++)
+		if (facts[i] ==ps)
+		return true;
+		if (rules[ps] == undefined)
+		  return false;
+		  
+		  
+		if ( rules[ps].length ==1 )
+		{
+		 for(var i=0; i<rules[ps][0].length; i++)
+		 {
+		 backwardChaining(rules[ps][0][1]);
+		}}
+		else{
+         backwardChaining(rules[ps][1][0])&&backwardChaining(rules[ps][1][1])}
+		
+		
+		
+		
+		
+		}
+		
+		
+    
+
+    /*
+    *   Utility functions and a queue for sub-goals
+    */
+    
+    /*
+    var sub_goals = [];
+    */
+    
+    function isFact(ps)
+    {
+        if (facts.indexOf(ps) >= 0)
+            return true;
+        else
+            return false;
+    }
+
+    /*
+    function isSubGoal(ps)
+    {
+        if (sub_goals.indexOf(ps) >= 0)
+            return true;
+        else
+            return false;
+    }
+
+    function popFromSubGoals(ps)
+    {
+        if (sub_goals.indexOf(ps) >= 0)
+            sub_goals.splice(sub_goals.indexOf(ps), 1);
+    }
+
+    function pushIntoSubGoals(ps)
+    {
+        if (sub_goals.indexOf(ps) < 0)
+            sub_goals.push(ps);
+    }
+    */
+    
+    function pushIntoFacts(ps)
+    {
+        if (facts.indexOf(ps) < 0)
+            facts.push(ps);
+    }
+
+    function thereIsNoRuleToUse(ps)
+    {
+        if (rules[ps] == undefined)
+            return true;
+        else
+            return false;
+    }
+</script>
+
+</html>
